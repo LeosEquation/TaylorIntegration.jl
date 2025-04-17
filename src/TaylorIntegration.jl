@@ -11,7 +11,7 @@ if !isdefined(Base, :get_extension)
     using Requires
 end
 
-export TaylorSolution, taylorinteg, lyap_taylorinteg, @taylorize
+export TaylorSolution, taylorinteg, lyap_taylorinteg, @taylorize, taylorinteg_wrap, lyap_taylorinteg_wrap, taylorinteg_optim!
 
 include("parse_eqs.jl")
 include("integrator/jetcoeffs.jl")
@@ -19,8 +19,12 @@ include("integrator/stepsize.jl")
 include("integrator/taylorstep.jl")
 include("integrator/taylorsolution.jl")
 include("integrator/taylorinteg.jl")
+include("integrator/taylorinteg_wrap.jl")
+include("integrator/taylorinteg_optim.jl")
 include("lyapunovspectrum.jl")
+include("lyapunovspectrum_wrap.jl")
 include("rootfinding.jl")
+include("rootfinding_wrap.jl")
 include("common.jl")
 
 function __init__()
