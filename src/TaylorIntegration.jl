@@ -8,9 +8,6 @@ using LinearAlgebra
 using Markdown
 using InteractiveUtils #: methodswith
 using Parameters
-if !isdefined(Base, :get_extension)
-    using Requires
-end
 
 export TaylorSolution, taylorinteg, lyap_taylorinteg, @taylorize, taylorinteg!, taylorinteg_wrap, lyap_taylorinteg_wrap, taylorinteg_optim!
 
@@ -29,14 +26,6 @@ include("rootfinding.jl")
 include("rootfinding_wrap.jl")
 include("common.jl")
 
-function __init__()
-
-    @static if !isdefined(Base, :get_extension)
-        @require OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed" begin
-            include("../ext/TaylorIntegrationDiffEqExt.jl")
-        end
-    end
-end
 
 @inline function solcoeff!(
     a::Taylor1{T},
@@ -51,9 +40,10 @@ end
     res::Taylor1{Taylor1{T}},
     a::Taylor1{Taylor1{T}},
     k::Int,
-) where {T<:TaylorSeries.NumberNotSeries}
+) where {T<:TaylorSeries.NumberNotSeriesN}
     @inbounds for l in eachindex(a[k-1])
-        res[k][l] = a[k-1][l] / k
+        # res[k][l] = a[k-1][l] / k
+        TS.div!(res[k], a[k-1], k, l)
     end
     return nothing
 end
