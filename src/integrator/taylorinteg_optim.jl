@@ -14,8 +14,8 @@ function init_cache_optim(
     q0::Vector{U},
     order::Int,
     f!,
-    params = nothing;
-    parse_eqs::Bool = true,
+    params=nothing;
+    parse_eqs::Bool=true,
 ) where {U,T}
     # Initialize the vector of Taylor1 expansions
     t, x, dx = init_expansions(t0, q0, order)
@@ -41,7 +41,7 @@ function taylorinteg_optim!(
     abstol::T,
     cache::VectorCacheOptim,
     params;
-    maxsteps::Int = 500,
+    maxsteps::Int=500,
 ) where {T<:Real,U<:Number}
 
     @unpack xaux, t, x, dx, rv, parse_eqs = cache
@@ -67,7 +67,7 @@ function taylorinteg_optim!(
             break
         end
     end
-    
+
 end
 
 function taylorinteg_wrap_optim!(
@@ -79,7 +79,7 @@ function taylorinteg_wrap_optim!(
     abstol::T,
     cache::VectorCacheOptim,
     params;
-    maxsteps::Int = 500,
+    maxsteps::Int=500,
 ) where {T<:Real,U<:Number}
 
     @unpack xaux, t, x, dx, rv, parse_eqs = cache
@@ -121,7 +121,7 @@ function taylorinteg_wrap_optim!(
     abstol::T,
     cache::VectorCacheOptim,
     params;
-    maxsteps::Int = 500,
+    maxsteps::Int=500,
 ) where {T<:Real,U<:Number}
 
     @unpack xaux, t, x, dx, rv, parse_eqs = cache
@@ -181,7 +181,7 @@ function taylorinteg_floquet!(
     cache::VectorCacheOptim,
     eigcache::VectorCacheOptim,
     params;
-    maxsteps::Int = 500,
+    maxsteps::Int=500,
 ) where {T<:Real,U<:Number}
 
     @unpack xaux, t, x, dx, rv, parse_eqs = cache
@@ -198,15 +198,15 @@ function taylorinteg_floquet!(
         # Below, δt has the proper sign according to the direction of the integration
         δt = sign_tstep * min(δt, sign_tstep * (tmax - t0))
         taylorinteg_optim!(
-                            g!,
-                            v0,
-                            zero(T),
-                            δt,
-                            abstol,
-                            eigcache,
-                            params;
-                            maxsteps = maxsteps,
-                          )
+            g!,
+            v0,
+            zero(T),
+            δt,
+            abstol,
+            eigcache,
+            params;
+            maxsteps=maxsteps,
+        )
         evaluate!(x, δt, q0) # new initial condition
         t0 += δt
         if lims(q0, params, t0)
