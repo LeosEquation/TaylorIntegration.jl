@@ -6,10 +6,10 @@ function taylorinteg_wrap(
     tmax::T,
     order::Int,
     abstol::T,
-    params = nothing;
-    maxsteps::Int = 500,
-    parse_eqs::Bool = true,
-    dense::Bool = true,
+    params=nothing;
+    maxsteps::Int=500,
+    parse_eqs::Bool=true,
+    dense::Bool=true,
 ) where {T<:Real,U<:Number}
 
     # Allocation
@@ -28,7 +28,7 @@ function taylorinteg_wrap!(
     abstol::T,
     cache::VectorCache,
     params;
-    maxsteps::Int = 500,
+    maxsteps::Int=500,
 ) where {T<:Real,U<:Number,D}
 
     @unpack tv, xv, psol, xaux, t, x, dx, rv, parse_eqs = cache
@@ -36,7 +36,7 @@ function taylorinteg_wrap!(
     # Initial conditions
     x0 = deepcopy(q0)
     bc!(x0, params, t0)
-    update!(cache, t0, x0)
+    update_cache!(cache, t0, x0)
     @inbounds tv[1] = t0
     @inbounds xv[:, 1] .= q0
     sign_tstep = copysign(1, tmax - t0)
@@ -51,7 +51,7 @@ function taylorinteg_wrap!(
         set_psol!(dense, psol, nsteps, x) # Store the Taylor polynomial solution
         t0 += δt
         bc!(x0, params, t0)
-        update!(cache, t0, x0)
+        update_cache!(cache, t0, x0)
         nsteps += 1
         @inbounds tv[nsteps] = t0
         @inbounds xv[:, nsteps] .= deepcopy.(x0)
@@ -73,13 +73,13 @@ function taylorinteg_wrap(
     trange::AbstractVector{T},
     order::Int,
     abstol::T,
-    params = nothing;
-    maxsteps::Int = 500,
-    parse_eqs::Bool = true,
+    params=nothing;
+    maxsteps::Int=500,
+    parse_eqs::Bool=true,
 ) where {T<:Real,U<:Number}
 
     # Check if trange is increasingly or decreasingly sorted
-    @assert (issorted(trange) || issorted(trange, rev = true)) "`trange` or `reverse(trange)` must be sorted"
+    @assert (issorted(trange) || issorted(trange, rev=true)) "`trange` or `reverse(trange)` must be sorted"
 
     # Allocation
     cache = init_cache(Val(false), trange, q0, maxsteps, order, f!, params; parse_eqs)
@@ -95,7 +95,7 @@ function taylorinteg_wrap!(
     abstol::T,
     cache::VectorTRangeCache,
     params;
-    maxsteps::Int = 500,
+    maxsteps::Int=500,
 ) where {T<:Real,U<:Number}
 
     @unpack xv, xaux, x0, x1, t, x, dx, rv, parse_eqs = cache
@@ -105,7 +105,7 @@ function taylorinteg_wrap!(
     sign_tstep = copysign(1, tmax - t0)
     @inbounds x0 .= deepcopy(q0)
     bc!(x0, params, t0)
-    update!(cache, t0, x0)
+    update_cache!(cache, t0, x0)
     @inbounds xv[:, 1] .= q0
 
     # Integration
@@ -132,7 +132,7 @@ function taylorinteg_wrap!(
         end
         t0 = tnext
         bc!(x0, params, t0)
-        update!(cache, t0, x0)
+        update_cache!(cache, t0, x0)
         nsteps += 1
         if nsteps > maxsteps
             @warn("""

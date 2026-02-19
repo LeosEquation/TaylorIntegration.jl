@@ -75,13 +75,13 @@ function taylorinteg_wrap(
     tmax::T,
     order::Int,
     abstol::T,
-    params = nothing;
-    maxsteps::Int = 500,
-    parse_eqs::Bool = true,
-    dense::Bool = true,
-    eventorder::Int = 0,
-    newtoniter::Int = 10,
-    nrabstol::T = eps(T),
+    params=nothing;
+    maxsteps::Int=500,
+    parse_eqs::Bool=true,
+    dense::Bool=true,
+    eventorder::Int=0,
+    newtoniter::Int=10,
+    nrabstol::T=eps(T),
 ) where {T<:Real,U<:Number}
 
     @assert order ≥ eventorder "`eventorder` must be less than or equal to `order`"
@@ -118,10 +118,10 @@ function taylorinteg_wrap!(
     abstol::T,
     cache::VectorCache,
     params;
-    maxsteps::Int = 500,
-    eventorder::Int = 0,
-    newtoniter::Int = 10,
-    nrabstol::T = eps(T),
+    maxsteps::Int=500,
+    eventorder::Int=0,
+    newtoniter::Int=10,
+    nrabstol::T=eps(T),
 ) where {T<:Real,U<:Number,D}
 
     @unpack tv, xv, psol, xaux, t, x, dx, rv, parse_eqs = cache
@@ -129,7 +129,7 @@ function taylorinteg_wrap!(
     # Initial conditions
     x0 = deepcopy(q0)
     bc!(x0, params, t0)
-    update!(cache, t0, x0)
+    update_cache!(cache, t0, x0)
     @inbounds tv[1] = t0
     @inbounds xv[:, 1] .= deepcopy(q0)
     sign_tstep = copysign(1, tmax - t0)
@@ -183,7 +183,7 @@ function taylorinteg_wrap!(
         g_tupl_old = deepcopy(g_tupl)
         t0 += δt
         bc!(x0, params, t0)
-        update!(cache, t0, x0)
+        update_cache!(cache, t0, x0)
         nsteps += 1
         @inbounds tv[nsteps] = t0
         @inbounds xv[:, nsteps] .= deepcopy(x0)
@@ -206,18 +206,18 @@ function taylorinteg_wrap!(
     trange::AbstractVector{T},
     order::Int,
     abstol::T,
-    params = nothing;
-    maxsteps::Int = 500,
-    parse_eqs::Bool = true,
-    eventorder::Int = 0,
-    newtoniter::Int = 10,
-    nrabstol::T = eps(T),
+    params=nothing;
+    maxsteps::Int=500,
+    parse_eqs::Bool=true,
+    eventorder::Int=0,
+    newtoniter::Int=10,
+    nrabstol::T=eps(T),
 ) where {T<:Real,U<:Number}
 
     @assert order ≥ eventorder "`eventorder` must be less than or equal to `order`"
 
     # Check if trange is increasingly or decreasingly sorted
-    @assert (issorted(trange) || issorted(trange, rev = true)) "`trange` or `reverse(trange)` must be sorted"
+    @assert (issorted(trange) || issorted(trange, rev=true)) "`trange` or `reverse(trange)` must be sorted"
 
     # Allocation
     cache = init_cache(Val(false), trange, q0, maxsteps, order, f!, params; parse_eqs)
@@ -247,10 +247,10 @@ function taylorinteg_wrap!(
     abstol::T,
     cache::VectorTRangeCache,
     params;
-    maxsteps::Int = 500,
-    eventorder::Int = 0,
-    newtoniter::Int = 10,
-    nrabstol::T = eps(T),
+    maxsteps::Int=500,
+    eventorder::Int=0,
+    newtoniter::Int=10,
+    nrabstol::T=eps(T),
 ) where {T<:Real,U<:Number}
 
     @unpack tv, xv, xaux, x0, x1, t, x, dx, rv, parse_eqs = cache
@@ -260,7 +260,7 @@ function taylorinteg_wrap!(
     sign_tstep = copysign(1, tmax - t0)
     @inbounds x0 .= deepcopy(q0)
     bc!(x0, params, t0)
-    update!(cache, t0, x0)
+    update_cache!(cache, t0, x0)
     @inbounds xv[:, 1] .= deepcopy(q0)
 
     # Some auxiliary arrays for root-finding/event detection/Poincaré surface of section evaluation
@@ -326,7 +326,7 @@ function taylorinteg_wrap!(
         g_tupl_old = deepcopy(g_tupl)
         t0 = tnext
         bc!(x0, params, t0)
-        update!(cache, t0, x0)
+        update_cache!(cache, t0, x0)
         nsteps += 1
         if nsteps > maxsteps
             @warn("""

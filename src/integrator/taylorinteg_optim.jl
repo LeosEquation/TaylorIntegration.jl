@@ -33,6 +33,15 @@ function init_cache_optim(
     )
 end
 
+function update_cache!(cache::AbstractVectorCache, t0::T, x0::AbstractVector{U}) where {T,U}
+    @unpack t, x = cache
+    @inbounds for i in eachindex(x0)
+        x[i][0] = x0[i]
+    end
+    @inbounds t[0] = t0
+    return nothing
+end
+
 function taylorinteg_optim!(
     f!,
     q0::AbstractVector{U},
@@ -47,7 +56,7 @@ function taylorinteg_optim!(
     @unpack xaux, t, x, dx, rv, parse_eqs = cache
 
     # Initial conditions
-    update!(cache, t0, q0)
+    update_cache!(cache, t0, q0)
     sign_tstep = copysign(1, tmax - t0)
 
     # Integration
@@ -58,7 +67,7 @@ function taylorinteg_optim!(
         δt = sign_tstep * min(δt, sign_tstep * (tmax - t0))
         evaluate!(x, δt, q0) # new initial condition
         t0 += δt
-        update!(cache, t0, q0)
+        update_cache!(cache, t0, q0)
         nsteps += 1
         if nsteps > maxsteps
             @warn("""
@@ -86,7 +95,7 @@ function taylorinteg_wrap_optim!(
 
     # Initial conditions
     bc!(q0, params, t0)
-    update!(cache, t0, q0)
+    update_cache!(cache, t0, q0)
     sign_tstep = copysign(1, tmax - t0)
 
     # Integration
@@ -129,12 +138,12 @@ function taylorinteg_wrap_optim!(
     # Initial conditions
     bc!(q0, params, t0)
     if lims(q0, params, t0)
-        @warn("""
-        Variable limits was exceded; exiting.
-        """)
+        # @warn("""
+        # Variable limits was exceded; exiting.
+        # """)
         return nothing
     end
-    update!(cache, t0, q0)
+    update_cache!(cache, t0, q0)
     sign_tstep = copysign(1, tmax - t0)
 
     # Integration
@@ -152,12 +161,12 @@ function taylorinteg_wrap_optim!(
             """)
             return nothing
         end
-        update!(cache, t0, q0)
+        update_cache!(cache, t0, q0)
         nsteps += 1
         if nsteps > maxsteps
-            @warn("""
-            Maximum number of integration steps reached; exiting.
-            """)
+            # @warn("""
+            # Maximum number of integration steps reached; exiting.
+            # """)
             return nothing
         end
 
@@ -188,7 +197,7 @@ function taylorinteg_floquet!(
 
     # Initial conditions
     bc!(q0, params, t0)
-    update!(cache, t0, q0)
+    update_cache!(cache, t0, q0)
     sign_tstep = copysign(1, tmax - t0)
 
     # Integration
@@ -216,7 +225,7 @@ function taylorinteg_floquet!(
             break
         end
         bc!(q0, params, t0)
-        update!(cache, t0, q0)
+        update_cache!(cache, t0, q0)
         nsteps += 1
         if nsteps > maxsteps
             @warn("""

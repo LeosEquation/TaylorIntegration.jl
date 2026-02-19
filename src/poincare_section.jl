@@ -16,8 +16,8 @@ function init_cache_ps(
     maxevents::Int,
     order::Int,
     f!,
-    params = nothing;
-    parse_eqs::Bool = true,
+    params=nothing;
+    parse_eqs::Bool=true,
 ) where {U,T}
     # Initialize the vector of Taylor1 expansions
     t, x, dx = init_expansions(t0, q0, order)
@@ -81,7 +81,7 @@ function findroot_ps!(
             evaluate!(g_dg, dt_nr, view(g_dg_val, :))
             nriter += 1
         end
-        
+
         if nriter <= newtoniter
 
             evaluate!(x_dx, dt_nr, view(x_dx_val, :))
@@ -109,17 +109,17 @@ function taylorinteg_ps!(
     abstol::T,
     cache::VectorCachePS,
     params;
-    maxsteps::Int = 500,
-    maxevents::Int = 500,
-    eventorder::Int = 0,
-    newtoniter::Int = 10,
-    nrabstol::T = eps(T),
+    maxsteps::Int=500,
+    maxevents::Int=500,
+    eventorder::Int=0,
+    newtoniter::Int=10,
+    nrabstol::T=eps(T),
 ) where {T<:Real,U<:Number}
 
     @unpack xv, xaux, t, x, dx, rv, parse_eqs = cache
 
     x0 = deepcopy(q0)
-    update!(cache, t0, x0)
+    update_cache!(cache, t0, x0)
     sign_tstep = copysign(1, tmax - t0)
 
     # Some auxiliary arrays for root-finding/event detection/Poincaré surface of section evaluation
@@ -165,7 +165,7 @@ function taylorinteg_ps!(
         g_tupl_old = deepcopy(g_tupl)
         t0 += δt
         bc!(x0, params, t0)
-        update!(cache, t0, x0)
+        update_cache!(cache, t0, x0)
         nsteps += 1
         if nsteps > maxsteps || nevents > maxevents
             break
@@ -187,17 +187,17 @@ function taylorinteg_ps!(
     abstol::T,
     cache::VectorCachePS,
     params;
-    maxsteps::Int = 500,
-    maxevents::Int = 500,
-    eventorder::Int = 0,
-    newtoniter::Int = 10,
-    nrabstol::T = eps(T),
+    maxsteps::Int=500,
+    maxevents::Int=500,
+    eventorder::Int=0,
+    newtoniter::Int=10,
+    nrabstol::T=eps(T),
 ) where {T<:Real,U<:Number}
 
     @unpack xv, xaux, t, x, dx, rv, parse_eqs = cache
 
     x0 = deepcopy(q0)
-    update!(cache, t0, x0)
+    update_cache!(cache, t0, x0)
     sign_tstep = copysign(1, tmax - t0)
 
     # Some auxiliary arrays for root-finding/event detection/Poincaré surface of section evaluation
@@ -243,7 +243,7 @@ function taylorinteg_ps!(
         g_tupl_old = deepcopy(g_tupl)
         t0 += δt
         bc!(x0, params, t0)
-        update!(cache, t0, x0)
+        update_cache!(cache, t0, x0)
         nsteps += 1
         if nsteps > maxsteps || nevents > maxevents
             break
