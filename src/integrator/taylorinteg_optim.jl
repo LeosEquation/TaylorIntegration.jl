@@ -51,9 +51,10 @@ function taylorinteg_optim!(
     cache::VectorCacheOptim,
     params;
     maxsteps::Int=500,
+    reltol::T = zero(T),
 ) where {T<:Real,U<:Number}
 
-    @unpack xaux, t, x, dx, rv, parse_eqs = cache
+    (; xaux, t, x, dx, rv, parse_eqs) = cache
 
     # Initial conditions
     update_cache!(cache, t0, q0)
@@ -62,8 +63,11 @@ function taylorinteg_optim!(
     # Integration
     nsteps = 1
     while sign_tstep * t0 < sign_tstep * tmax
-        δt = taylorstep!(Val(parse_eqs), f!, t, x, dx, xaux, abstol, params, rv) # δt is positive!
+        δt = taylorstep!(Val(parse_eqs), f!, t, x, dx, xaux, abstol, params, rv, reltol) # δt is positive!
         # Below, δt has the proper sign according to the direction of the integration
+        if iszero(δt)
+            break
+        end
         δt = sign_tstep * min(δt, sign_tstep * (tmax - t0))
         evaluate!(x, δt, q0) # new initial condition
         t0 += δt
@@ -76,6 +80,8 @@ function taylorinteg_optim!(
             break
         end
     end
+
+    return nsteps
 
 end
 
@@ -91,7 +97,7 @@ function taylorinteg_wrap_optim!(
     maxsteps::Int=500,
 ) where {T<:Real,U<:Number}
 
-    @unpack xaux, t, x, dx, rv, parse_eqs = cache
+    (; xaux, t, x, dx, rv, parse_eqs) = cache
 
     # Initial conditions
     bc!(q0, params, t0)
@@ -101,13 +107,16 @@ function taylorinteg_wrap_optim!(
     # Integration
     nsteps = 1
     while sign_tstep * t0 < sign_tstep * tmax
-        δt = taylorstep!(Val(parse_eqs), f!, t, x, dx, xaux, abstol, params, rv) # δt is positive!
+        δt = taylorstep!(Val(parse_eqs), f!, t, x, dx, xaux, abstol, params, rv, reltol) # δt is positive!
         # Below, δt has the proper sign according to the direction of the integration
+        if iszero(δt)
+            break
+        end
         δt = sign_tstep * min(δt, sign_tstep * (tmax - t0))
         evaluate!(x, δt, q0) # new initial condition
         t0 += δt
         bc!(q0, params, t0)
-        update!(cache, t0, q0)
+        update_cache!(cache, t0, q0)
         nsteps += 1
         if nsteps > maxsteps
             @warn("""
@@ -116,6 +125,8 @@ function taylorinteg_wrap_optim!(
             break
         end
     end
+
+    return nsteps
 
 end
 
@@ -131,17 +142,15 @@ function taylorinteg_wrap_optim!(
     cache::VectorCacheOptim,
     params;
     maxsteps::Int=500,
+    reltol::T = zero(T),
 ) where {T<:Real,U<:Number}
 
-    @unpack xaux, t, x, dx, rv, parse_eqs = cache
+    (; xaux, t, x, dx, rv, parse_eqs) = cache
 
     # Initial conditions
     bc!(q0, params, t0)
     if lims(q0, params, t0)
-        # @warn("""
-        # Variable limits was exceded; exiting.
-        # """)
-        return nothing
+        return false
     end
     update_cache!(cache, t0, q0)
     sign_tstep = copysign(1, tmax - t0)
@@ -149,30 +158,27 @@ function taylorinteg_wrap_optim!(
     # Integration
     nsteps = 1
     while sign_tstep * t0 < sign_tstep * tmax
-        δt = taylorstep!(Val(parse_eqs), f!, t, x, dx, xaux, abstol, params, rv) # δt is positive!
+        δt = taylorstep!(Val(parse_eqs), f!, t, x, dx, xaux, abstol, params, rv, reltol) # δt is positive!
         # Below, δt has the proper sign according to the direction of the integration
+        if iszero(δt)
+            return false
+        end
         δt = sign_tstep * min(δt, sign_tstep * (tmax - t0))
         evaluate!(x, δt, q0) # new initial condition
         t0 += δt
         bc!(q0, params, t0)
         if lims(q0, params, t0)
-            @warn("""
-            Variable limits was exceded; exiting.
-            """)
-            return nothing
+            return false
         end
         update_cache!(cache, t0, q0)
         nsteps += 1
         if nsteps > maxsteps
-            # @warn("""
-            # Maximum number of integration steps reached; exiting.
-            # """)
-            return nothing
+            return false
         end
 
     end
 
-    return nothing
+    return true
 
 end
 
