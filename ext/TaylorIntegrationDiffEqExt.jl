@@ -5,8 +5,6 @@ module TaylorIntegrationDiffEqExt
 using TaylorIntegration
 
 using OrdinaryDiffEq:
-    @unpack,
-    @cache,
     ODEFunction,
     DynamicalODEFunction,
     check_keywords,
@@ -14,6 +12,7 @@ using OrdinaryDiffEq:
     ODEProblem,
     DynamicalODEProblem
 using OrdinaryDiffEq.OrdinaryDiffEqCore
+using OrdinaryDiffEq.OrdinaryDiffEqCore: @cache
 import OrdinaryDiffEq
 
 using StaticArrays: SVector, SizedArray
@@ -33,7 +32,6 @@ const warnkeywords = (
     :initialize_save,
     :adaptive,
     :dt,
-    :reltol,
     :dtmax,
     :dtmin,
     :force_dtmin,
@@ -113,6 +111,7 @@ function ODEqCore.alg_cache(
     p,
     calck,
     ::Val{true},
+    ::ODEqCore.DEVerbosity
 )
     order = alg.order
     tT = Taylor1(typeof(t), order)
@@ -154,6 +153,7 @@ function ODEqCore.alg_cache(
     p,
     calck,
     ::Val{true},
+    ::ODEqCore.DEVerbosity
 )
     order = alg.order
     tT = Taylor1(typeof(t), order)
@@ -193,6 +193,7 @@ function ODEqCore.alg_cache(
     p,
     calck,
     ::Val{false},
+    ::ODEqCore.DEVerbosity
 )
     order = alg.order
     tT = Taylor1(typeof(t), order)
@@ -203,10 +204,10 @@ function ODEqCore.alg_cache(
 end
 
 function ODEqCore.initialize!(integrator, c::TaylorMethodConstantCache)
-    @unpack u, t, f, p = integrator
+    (; u, t, f, p) = integrator
     tT = Taylor1(typeof(t), integrator.alg.order)
     tT[0] = t
-    c.uT .= Taylor1(u, tT.order)
+    c.uT .= Taylor1(u, get_order(tT))
     TaylorIntegration.__jetcoeffs!(Val(c.parse_eqs.x), f, tT, c.uT, p, c.rv)
     # FSAL stuff
     integrator.kshortsize = 2
@@ -220,7 +221,7 @@ function ODEqCore.initialize!(integrator, c::TaylorMethodConstantCache)
 end
 
 function ODEqCore.perform_step!(integrator, cache::TaylorMethodConstantCache)
-    @unpack u, t, dt, f, p = integrator
+    (; u, t, dt, f, p) = integrator
     tT = Taylor1(typeof(t), integrator.alg.order)
     tT[0] = t + dt
     u = evaluate(cache.uT, dt)
@@ -235,8 +236,8 @@ function ODEqCore.perform_step!(integrator, cache::TaylorMethodConstantCache)
 end
 
 function ODEqCore.initialize!(integrator, cache::TaylorMethodCache)
-    @unpack u, t, f, p = integrator
-    @unpack k, fsalfirst, tT, uT, duT, uauxT, parse_eqs, rv = cache
+    (; u, t, dt, f, p) = integrator
+    (; k, fsalfirst, tT, uT, duT, uauxT, parse_eqs, rv) = cache
     TaylorIntegration.__jetcoeffs!(Val(parse_eqs.x), f, tT, uT, duT, uauxT, p, rv)
     # FSAL for interpolation
     integrator.fsalfirst = fsalfirst
@@ -250,8 +251,8 @@ function ODEqCore.initialize!(integrator, cache::TaylorMethodCache)
 end
 
 function ODEqCore.perform_step!(integrator, cache::TaylorMethodCache)
-    @unpack t, dt, u, f, p = integrator
-    @unpack k, tT, uT, duT, uauxT, parse_eqs, rv = cache
+    (; t, dt, u, f, p) = integrator
+    (; k, tT, uT, duT, uauxT, parse_eqs, rv) = cache
     evaluate!(uT, dt, u)
     tT[0] = t + dt
     for i in eachindex(u)
@@ -266,7 +267,7 @@ end
 ODEqCore.get_fsalfirstlast(cache::TaylorMethodCache, u) = (cache.fsalfirst, cache.k)
 
 ODEqCore.stepsize_controller!(integrator, alg::TaylorMethodParams) =
-    TaylorIntegration.stepsize(integrator.cache.uT, integrator.opts.abstol)
+    TaylorIntegration.stepsize(integrator.cache.uT, integrator.opts.abstol, integrator.opts.reltol)
 ODEqCore.step_accept_controller!(integrator, alg::TaylorMethodParams, q) = q
 
 function DiffEqBase.solve(
@@ -286,6 +287,10 @@ function DiffEqBase.solve(
 
     f = prob.f
     parse_eqs = haskey(kwargs, :parse_eqs) ? kwargs[:parse_eqs] : true # `true` is the default
+    # Change default val of reltol to zdro, if not explicitly specified
+    if !haskey(kwargs, :reltol)
+        kwargs = (kwargs..., :reltol => zero(kwargs[:abstol]))
+    end
     if !isinplace && typeof(prob.u0) <: AbstractArray
         ### TODO: allow `parse_eqs=true` for DynamicalODEFunction
         if prob.f isa DynamicalODEFunction
@@ -322,14 +327,14 @@ function DiffEqBase.solve(
     integrator = DiffEqBase.__init(_prob, _alg, args...; kwargs...)
     integrator.dt =
         integrator.tdir *
-        TaylorIntegration.stepsize(integrator.cache.uT, integrator.opts.abstol) # override handle_dt! setting of initial dt
+        TaylorIntegration.stepsize(integrator.cache.uT, integrator.opts.abstol, integrator.opts.reltol) # override handle_dt! setting of initial dt
     DiffEqBase.solve!(integrator)
     integrator.sol
 end
 
 # used in continuous callbacks and related methods to update Taylor expansions cache
 function update_jetcoeffs_cache!(u, f, p, cache::TaylorMethodCache)
-    @unpack tT, uT, duT, uauxT, parse_eqs, rv = cache
+    (; tT, uT, duT, uauxT, parse_eqs, rv) = cache
     @inbounds for i in eachindex(u)
         @inbounds uT[i][0] = u[i]
         @inbounds TaylorSeries.zero!(duT[i], 0)
