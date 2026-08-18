@@ -1,5 +1,3 @@
-
-
 struct VectorCachePS{XV,XAUX,T,X,DX,RV,PARSE_EQS} <: AbstractVectorCache
     xv::XV
     xaux::XAUX
@@ -88,7 +86,7 @@ function findroot_ps!(
 
             bc!(x_dx_val, params, t0 + dt_nr)
 
-            xvS[:, nevents] .= view(x_dx_val, 1:dof)
+            xvS[:, nevents] .= deepcopy.(view(x_dx_val, 1:dof))
 
             nevents += 1
 
@@ -103,7 +101,7 @@ function taylorinteg_ps!(
     f!,
     bc!,
     g,
-    q0::Array{U,1},
+    q0::AbstractVector{U},
     t0::T,
     tmax::T,
     abstol::T,
@@ -114,9 +112,10 @@ function taylorinteg_ps!(
     eventorder::Int=0,
     newtoniter::Int=10,
     nrabstol::T=eps(T),
+    reltol::T=eps(T),
 ) where {T<:Real,U<:Number}
 
-    @unpack xv, xaux, t, x, dx, rv, parse_eqs = cache
+    (; xv, xaux, t, x, dx, rv, parse_eqs) = cache
 
     x0 = deepcopy(q0)
     update_cache!(cache, t0, x0)
@@ -124,13 +123,13 @@ function taylorinteg_ps!(
 
     # Some auxiliary arrays for root-finding/event detection/Poincaré surface of section evaluation
     g_tupl = g(dx, x, params, t)
-    g_tupl_old = g(dx, x, params, t)
+    g_tupl_old = deepcopy(g_tupl)
     δt = zero(x[1])
     δt_old = zero(x[1])
 
     x_dx = vcat(x, dx)
     g_dg = vcat(g_tupl[2], g_tupl_old[2])
-    x_dx_val = Array{U}(undef, length(x_dx))
+    x_dx_val = evaluate(x_dx)
     g_dg_val = vcat(evaluate(g_tupl[2]), evaluate(g_tupl_old[2]))
 
     # Integration
@@ -138,8 +137,11 @@ function taylorinteg_ps!(
     nevents = 1 #number of detected events
     while sign_tstep * t0 < sign_tstep * tmax
         δt_old = δt
-        δt = taylorstep!(Val(parse_eqs), f!, t, x, dx, xaux, abstol, params, rv) # δt is positive!
+        δt = taylorstep!(Val(parse_eqs), f!, t, x, dx, xaux, abstol, params, rv, reltol) # δt is positive!
         # Below, δt has the proper sign according to the direction of the integration
+        if iszero(δt)
+            break
+        end
         δt = sign_tstep * min(δt, sign_tstep * (tmax - t0))
         evaluate!(x, δt, x0) # new initial condition
         g_tupl = g(dx, x, params, t)
@@ -192,9 +194,10 @@ function taylorinteg_ps!(
     eventorder::Int=0,
     newtoniter::Int=10,
     nrabstol::T=eps(T),
+    reltol::T=zero(T)
 ) where {T<:Real,U<:Number}
 
-    @unpack xv, xaux, t, x, dx, rv, parse_eqs = cache
+    (; xv, xaux, t, x, dx, rv, parse_eqs) = cache
 
     x0 = deepcopy(q0)
     update_cache!(cache, t0, x0)
@@ -202,13 +205,13 @@ function taylorinteg_ps!(
 
     # Some auxiliary arrays for root-finding/event detection/Poincaré surface of section evaluation
     g_tupl = g(dx, x, params, t)
-    g_tupl_old = g(dx, x, params, t)
+    g_tupl_old = deepcopy(g_tupl_old)
     δt = zero(x[1])
     δt_old = zero(x[1])
 
     x_dx = vcat(x, dx)
     g_dg = vcat(g_tupl[2], g_tupl_old[2])
-    x_dx_val = Array{U}(undef, length(x_dx))
+    x_dx_val = evaluate(x_dx)
     g_dg_val = vcat(evaluate(g_tupl[2]), evaluate(g_tupl_old[2]))
 
     # Integration
@@ -216,8 +219,11 @@ function taylorinteg_ps!(
     nevents = 1 #number of detected events
     while sign_tstep * t0 < sign_tstep * tmax
         δt_old = δt
-        δt = taylorstep!(Val(parse_eqs), f!, t, x, dx, xaux, abstol, params, rv) # δt is positive!
+        δt = taylorstep!(Val(parse_eqs), f!, t, x, dx, xaux, abstol, params, rv, reltol) # δt is positive!
         # Below, δt has the proper sign according to the direction of the integration
+        if iszero(δt)
+            break
+        end
         δt = sign_tstep * min(δt, sign_tstep * (tmax - t0))
         evaluate!(x, δt, x0) # new initial condition
         g_tupl = g(dx, x, params, t)
@@ -243,6 +249,9 @@ function taylorinteg_ps!(
         g_tupl_old = deepcopy(g_tupl)
         t0 += δt
         bc!(x0, params, t0)
+        if lims(x0, params, t0)
+            return false
+        end
         update_cache!(cache, t0, x0)
         nsteps += 1
         if nsteps > maxsteps || nevents > maxevents
